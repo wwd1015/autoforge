@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# autoforge setup — install skills into ~/.claude/skills/
+set -e
+
+INSTALL_DIR="$(cd "$(dirname "$0")" && pwd)"
+SKILLS_DIR="$HOME/.claude/skills"
+
+mkdir -p "$SKILLS_DIR"
+
+# Symlink each skill folder into ~/.claude/skills/
+for skill_dir in "$INSTALL_DIR"/*/; do
+  [ -f "$skill_dir/SKILL.md" ] || continue
+  skill_name=$(basename "$skill_dir")
+  # Skip bin directory
+  [ "$skill_name" = "bin" ] && continue
+  ln -sfn "$skill_dir" "$SKILLS_DIR/$skill_name"
+  echo "  Installed /$skill_name"
+done
+
+# Make update-check executable
+chmod +x "$INSTALL_DIR/bin/update-check" 2>/dev/null || true
+
+echo ""
+echo "autoforge v$(cat "$INSTALL_DIR/VERSION") installed!"
+echo "Available skills:"
+echo "  /autoforge       — optimize anything (models, configs, prompts, strategies)"
+echo "  /autoforge-stats — optimize traditional ML/statistical models"
+echo ""
+echo "Start a new Claude Code session to use them."

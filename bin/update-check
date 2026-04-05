@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# autoforge update checker — runs at skill load time via !`command` injection
+# Outputs "UPGRADE_AVAILABLE <old> <new>" if a newer version exists, else nothing.
+# Checks at most once per 24 hours. Fails silently on network errors.
+set -euo pipefail
+
+REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+STATE_DIR="$HOME/.autoforge"
+CACHE_FILE="$STATE_DIR/last-update-check"
+VERSION_FILE="$REPO_DIR/VERSION"
+REMOTE_URL="${AUTOFORGE_REMOTE_URL:-https://raw.githubusercontent.com/wwd1015/autoforge/main/VERSION}"
+
+mkdir -p "$STATE_DIR"
+
+# Only check once per day (86400 seconds)
+if [ -f "$CACHE_FILE" ]; then
+  last_check=$(head -1 "$CACHE_FILE")
+  now=$(date +%s)
+  age=$(( now - last_check ))
+  if [ "$age" -lt 86400 ]; then
+    exit 0
+  fi
+fi
+
+# Fetch remote version (3s timeout, fail silently)
+local_ver=$(cat "$VERSION_FILE" 2>/dev/null || echo "0.0.0")
+remote_ver=$(curl -sf --max-time 3 "$REMOTE_URL" 2>/dev/null | tr -d '[:space:]' || echo "")
+
+# Cache this check timestamp
+echo "$(date +%s)" > "$CACHE_FILE"
+
+# Compare versions
+if [ -n "$remote_ver" ] && [ "$remote_ver" != "$local_ver" ]; then
+  echo "UPGRADE_AVAILABLE $local_ver $remote_ver"
+fi
