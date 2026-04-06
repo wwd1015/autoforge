@@ -1,13 +1,16 @@
 #!/usr/bin/env bash
 # autoforge update checker — runs at skill load time via !`command` injection
 # Outputs "UPGRADE_AVAILABLE <old> <new>" if a newer version exists, else nothing.
-# Checks at most once per 24 hours. Fails silently on network errors.
-set -euo pipefail
+# Checks at most once per 24 hours. Fails silently on any error.
+# IMPORTANT: Must always exit 0 — a non-zero exit breaks the skill invocation.
+set -uo pipefail
 
-REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+REPO_DIR="$(cd "$(dirname "$0")/.." 2>/dev/null && pwd)" || exit 0
 STATE_DIR="$HOME/.autoforge"
 CACHE_FILE="$STATE_DIR/last-update-check"
 VERSION_FILE="$REPO_DIR/VERSION"
+
+[ -f "$VERSION_FILE" ] || exit 0
 REMOTE_URL="${AUTOFORGE_REMOTE_URL:-https://raw.githubusercontent.com/wwd1015/autoforge/main/VERSION}"
 
 mkdir -p "$STATE_DIR"

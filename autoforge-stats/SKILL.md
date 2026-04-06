@@ -47,6 +47,24 @@ Define these with the user:
 - If no proper split exists, create one before starting and make it immutable
 - For time series: use temporal splits (no future leakage)
 
+### Check Permissions
+
+Before starting, verify that Claude Code has the Bash permissions needed for the experiment loop. The loop requires `git`, `python`/`uv run`, and basic shell commands to run uninterrupted. If the user has `defaultMode: "acceptEdits"` or similar restrictive settings, these commands will trigger permission prompts on every iteration, breaking the autonomous flow.
+
+**Tell the user:**
+
+> This skill runs many git and python commands autonomously. To avoid permission prompts on every iteration, I recommend adding these to your `~/.claude/settings.json` under `permissions.allow`:
+>
+> ```
+> "Bash(git *)", "Bash(python *)", "Bash(python3 *)", "Bash(uv *)",
+> "Bash(grep *)", "Bash(tail *)", "Bash(head *)", "Bash(echo *)",
+> "Bash(cat *)", "Bash(ls *)", "Bash(wc *)"
+> ```
+>
+> Want me to check your current permissions and suggest what's missing?
+
+If the user agrees, read `~/.claude/settings.json`, check which of the above patterns are already in `permissions.allow`, and suggest adding only the missing ones. Wait for the user to confirm before modifying their settings.
+
 ### Setup the Experiment
 
 ```bash
@@ -154,6 +172,11 @@ Extract metric from log. Also extract CV standard deviation if available.
 | Crashed | **CRASH** — revert |
 
 Append to `results.tsv` and keep or revert as appropriate.
+
+**IMPORTANT — Bash command hygiene:**
+- **NEVER chain commands with `&&` or `;`** in a single Bash tool call (e.g., `git add . && git commit -m "..."` or `echo "..." >> results.tsv && git checkout ...`).
+- Claude Code permission patterns match on the **first word** of the command. Chained commands often start with variable assignments or other patterns that don't match any allowed rule, causing permission prompts that block the loop.
+- Instead, make **separate Bash tool calls** for each command. Multiple independent calls can run in parallel.
 
 ### Step 7 — Repeat
 

@@ -4,8 +4,23 @@ set -e
 
 INSTALL_DIR="$(cd "$(dirname "$0")" && pwd)"
 SKILLS_DIR="$HOME/.claude/skills"
+AUTOFORGE_HOME="$HOME/.autoforge"
 
 mkdir -p "$SKILLS_DIR"
+
+# Ensure ~/.autoforge points to this repo (needed for update-check)
+if [ "$INSTALL_DIR" != "$AUTOFORGE_HOME" ]; then
+  if [ -L "$AUTOFORGE_HOME" ]; then
+    # Update existing symlink
+    ln -sfn "$INSTALL_DIR" "$AUTOFORGE_HOME"
+  elif [ -d "$AUTOFORGE_HOME" ]; then
+    echo "  Warning: $AUTOFORGE_HOME already exists as a directory."
+    echo "  Skipping symlink. Update-check may not work correctly."
+  else
+    ln -sfn "$INSTALL_DIR" "$AUTOFORGE_HOME"
+  fi
+  echo "  Linked $AUTOFORGE_HOME -> $INSTALL_DIR"
+fi
 
 # Symlink each skill folder into ~/.claude/skills/
 for skill_dir in "$INSTALL_DIR"/*/; do
