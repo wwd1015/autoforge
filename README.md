@@ -7,7 +7,8 @@ Iteratively modifies code, runs experiments, measures a metric, keeps improvemen
 ## Skills
 
 - **`/autoforge`** — General-purpose. Optimizes anything with a measurable metric: ML models, configs, prompts, strategies, even other skills.
-- **`/autoforge-stats`** — Specialized for traditional statistical and ML models (scikit-learn, XGBoost, LightGBM, statsmodels, etc.). Adds CV tracking, leakage prevention, and domain-specific experiment ordering.
+- **`/autoforge-ml`** — Machine learning models: XGBoost, LightGBM, CatBoost, random forests, SVMs, neural nets, scikit-learn. Feature engineering, hyperparameter tuning, ensembling.
+- **`/autoforge-stats`** — Pure statistical models: linear/logistic regression, ridge/lasso, GLMs, ARIMA, exponential smoothing, VAR, GARCH, Cox PH. Econometrics, biostatistics, time series.
 
 ## Install
 
@@ -27,7 +28,7 @@ Updates are also checked automatically once per day when you invoke either skill
 
 ```bash
 rm -rf ~/.autoforge
-rm -f ~/.claude/skills/autoforge ~/.claude/skills/autoforge-stats
+rm -f ~/.claude/skills/autoforge ~/.claude/skills/autoforge-ml ~/.claude/skills/autoforge-stats
 ```
 
 ## License

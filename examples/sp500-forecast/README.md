@@ -1,6 +1,6 @@
-# S&P 500 7-Day Forecast — autoforge-stats example
+# S&P 500 7-Day Forecast — autoforge-ml example
 
-Autonomous optimization of an S&P 500 directional prediction model using `/autoforge-stats`. The agent iteratively improves model performance by modifying `sp500_train.py` — trying different models, features, hyperparameters, and ensembles — while keeping only changes that improve the score.
+Autonomous optimization of an S&P 500 directional prediction model using `/autoforge-ml`. The agent iteratively improves model performance by modifying `sp500_train.py` — trying different models, features, hyperparameters, and ensembles — while keeping only changes that improve the score.
 
 ## What it does
 
@@ -98,7 +98,7 @@ cat > .claude/settings.local.json << 'EOF'
 EOF
 ```
 
-## Running autoforge-stats (20-30 rounds)
+## Running autoforge-ml (20-30 rounds)
 
 ### Start Claude Code and invoke the skill
 
@@ -110,7 +110,7 @@ claude
 Then in the Claude Code prompt, type:
 
 ```
-/autoforge-stats sp500_train.py
+/autoforge-ml sp500_train.py
 ```
 
 The agent will:
@@ -121,7 +121,7 @@ The agent will:
    - Eval command: `uv run sp500_train.py`
    - Metric: `combined_score` (higher is better)
    - Immutable: `sp500_prepare.py`
-3. **Create a branch**: `autoforge-stats/sp500`
+3. **Create a branch**: `autoforge-ml/sp500`
 4. **Initialize** `results.tsv` with the header
 5. **Run baseline** and record the starting score
 6. **Begin the experiment loop** — runs indefinitely until you stop it
@@ -190,9 +190,9 @@ git diff main..HEAD -- sp500_train.py
 ```
 sp500-forecast/
 ├── sp500_prepare.py    # Data pipeline & evaluation (DO NOT MODIFY)
-├── sp500_train.py      # Model training (autoforge-stats modifies this)
+├── sp500_train.py      # Model training (autoforge-ml modifies this)
 ├── pyproject.toml      # Python dependencies
-├── results.tsv         # Experiment log (created by autoforge-stats)
+├── results.tsv         # Experiment log (created by autoforge-ml)
 ├── run.log             # Latest experiment output (created during runs)
 └── README.md           # This file
 ```
@@ -220,9 +220,9 @@ sp500-forecast/
 - One model per forecast day (7 classifiers + 7 regressors = 14 models)
 - No sample weighting, no prediction shrinkage
 
-The baseline is intentionally simple to give autoforge-stats room to improve.
+The baseline is intentionally simple to give autoforge-ml room to improve.
 
-## What autoforge-stats is allowed to change
+## What autoforge-ml is allowed to change
 
 Everything in `sp500_train.py` is fair game:
 - **Model type**: RandomForest, XGBoost, neural nets (torch), SVM, ensembles

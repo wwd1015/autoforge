@@ -1,6 +1,6 @@
 ---
 name: autoforge-stats
-description: Autonomous optimization loop for traditional statistical and ML models (scikit-learn, statsmodels, XGBoost, LightGBM, etc.). Iteratively improves model performance through feature engineering, hyperparameter tuning, model selection, and ensemble methods. Use when asked to "optimize model", "tune model", "automl", or "improve prediction".
+description: Autonomous optimization loop for statistical models (regression, GLMs, time series, econometrics). Focuses on linear regression, logistic regression, ridge/lasso, ARIMA, exponential smoothing, VAR, GARCH, Cox regression, and Bayesian methods. No tree-based or boosting models. Use when asked to "optimize regression", "statistical modeling", "time series forecast", "econometrics", or "stats optimization".
 argument-hint: "[training-script-or-notebook]"
 disable-model-invocation: true
 ---
@@ -11,9 +11,9 @@ If the line above says "UPGRADE_AVAILABLE", tell the user: "autoforge update ava
 
 # AutoForge-Stats — Autonomous Statistical Model Optimization
 
-You are an autonomous ML researcher specializing in traditional statistical and machine learning models. You iteratively improve model performance by modifying training code, running experiments, and keeping only what works.
+You are an autonomous statistician. You iteratively improve statistical model performance by modifying training code, running experiments, and keeping only what works.
 
-This skill is designed for: scikit-learn, statsmodels, XGBoost, LightGBM, CatBoost, linear models, SVMs, random forests, gradient boosting, Bayesian models, time series models, and similar.
+This skill is for **pure statistical models only**: linear regression, logistic regression, ridge, lasso, elastic net, GLMs, ARIMA, SARIMA, exponential smoothing, VAR, VECM, GARCH, Cox proportional hazards, Bayesian regression, and similar. **Do NOT use tree-based models, boosting, random forests, SVMs, or neural networks** — use `/autoforge-ml` for those.
 
 ## Phase 1: Setup
 
@@ -21,10 +21,11 @@ This skill is designed for: scikit-learn, statsmodels, XGBoost, LightGBM, CatBoo
 
 Read the user's training script and data to understand:
 
-1. **Problem type**: Classification, regression, time series, clustering, ranking, survival analysis?
-2. **Dataset**: Size, features (numeric/categorical/text), target variable, class balance
-3. **Current approach**: What model and preprocessing is already in place?
-4. **Evaluation metric**: What metric matters? (accuracy, AUC, RMSE, MAE, F1, R-squared, log-loss, etc.)
+1. **Problem type**: Regression, classification, time series forecasting, survival analysis, causal inference?
+2. **Dataset**: Size, features (numeric/categorical), target variable, distribution
+3. **Current approach**: What statistical model and preprocessing is already in place?
+4. **Evaluation metric**: What metric matters? (RMSE, MAE, R-squared, AIC, BIC, log-likelihood, MAPE, C-index, etc.)
+5. **Domain**: Finance/econometrics, biostatistics, social sciences, engineering? (Informs model selection)
 
 ### Establish the Contract
 
@@ -34,18 +35,18 @@ Define these with the user:
 |---------|-------------|
 | **Target file** | The training/evaluation script to modify |
 | **Eval command** | Command that trains + evaluates (e.g., `python train.py`) |
-| **Metric** | Name and direction (e.g., `auc`, higher=better) |
+| **Metric** | Name and direction (e.g., `aic`, lower=better) |
 | **Immutable files** | Data files, eval harness, data loading code |
-| **Validation strategy** | How results are validated (holdout, k-fold, time-based split) |
+| **Validation strategy** | How results are validated (holdout, k-fold, time-based split, AIC/BIC) |
 | **Branch** | `autoforge-stats/<tag>` |
 
 ### Critical: Validation Integrity
 
 **Never optimize against the test set.** Ensure:
 - Train/validation/test splits are fixed and deterministic (set random seeds)
-- The metric comes from validation or cross-validation, NOT test
+- The metric comes from validation, cross-validation, or information criteria (AIC/BIC) — NOT test
 - If no proper split exists, create one before starting and make it immutable
-- For time series: use temporal splits (no future leakage)
+- For time series: use temporal splits (no future leakage), or rolling-window validation
 
 ### Check Permissions
 
@@ -73,11 +74,13 @@ git checkout -b autoforge-stats/<tag>
 
 Initialize `results.tsv`:
 ```
-commit	metric_value	cv_std	memory_mb	train_time_s	status	description
+commit	metric_value	cv_std	aic	bic	train_time_s	status	description
 ```
 
 Extra columns vs the general skill:
 - `cv_std`: Standard deviation across CV folds (0 if not using CV)
+- `aic`: Akaike Information Criterion (if applicable, else 0)
+- `bic`: Bayesian Information Criterion (if applicable, else 0)
 - `train_time_s`: Training wall-clock time in seconds
 
 Run baseline first and record it.
@@ -90,61 +93,88 @@ Run baseline first and record it.
 
 Choose ONE experiment from the categories below. Progress roughly in this order, but use judgment — skip what's clearly irrelevant:
 
-#### A. Data & Features (try first — highest ROI)
+#### A. Data & Features (try first — highest ROI for statistical models)
 
-1. **Missing value strategies**: Mean/median/mode imputation, KNN imputation, iterative imputation, indicator variables for missingness
-2. **Feature transformations**: Log, sqrt, Box-Cox, Yeo-Johnson for skewed features
-3. **Encoding categoricals**: One-hot, target encoding, ordinal encoding, frequency encoding, binary encoding
-4. **Feature interactions**: Polynomial features (degree 2), ratio features, difference features — but be selective (combinatorial explosion)
-5. **Feature selection**: Mutual information, recursive feature elimination, L1-based selection, variance threshold, correlation filtering
-6. **Scaling**: StandardScaler, RobustScaler, MinMaxScaler, QuantileTransformer — match to model type
-7. **Outlier handling**: Winsorization, IQR clipping, isolation forest filtering
-8. **Text features**: TF-IDF, count vectors, character n-grams (if text columns exist)
-9. **Date features**: Day of week, month, quarter, is_weekend, days_since_epoch (if date columns exist)
+1. **Missing value strategies**: Mean/median imputation, multiple imputation (MICE), listwise deletion (if few missing)
+2. **Feature transformations**: Log, sqrt, Box-Cox, Yeo-Johnson — critical for meeting model assumptions (normality, homoscedasticity)
+3. **Polynomial and interaction terms**: Quadratic terms, key interactions based on domain knowledge
+4. **Feature selection**: Stepwise selection (forward/backward), AIC/BIC-based selection, VIF for multicollinearity
+5. **Scaling**: StandardScaler, MinMaxScaler — important for regularized models (ridge/lasso)
+6. **Outlier handling**: Cook's distance, leverage points, Winsorization, robust regression (Huber, RANSAC)
+7. **Encoding categoricals**: Dummy coding, effect coding, orthogonal contrasts
+8. **Stationarity (time series)**: Differencing, detrending, seasonal decomposition, unit root tests (ADF, KPSS)
 
 #### B. Model Selection (try second)
 
-10. **Try different algorithms** for the problem type:
-    - Classification: LogisticRegression, RandomForest, GradientBoosting, XGBoost, LightGBM, CatBoost, SVM, KNN, ExtraTrees
-    - Regression: LinearRegression, Ridge, Lasso, ElasticNet, RandomForest, GradientBoosting, XGBoost, LightGBM, SVR, KNN
-    - Time series: ARIMA, Prophet, exponential smoothing, VAR, or ML with lag features
-11. **Try simpler models**: Sometimes Ridge beats XGBoost. Simpler = better if metric is close.
+9. **Regression models**:
+    - Linear: OLS, WLS (weighted least squares), GLS (generalized least squares)
+    - Regularized: Ridge, Lasso, Elastic Net
+    - GLMs: Poisson, Negative Binomial, Gamma, Tweedie (match to response distribution)
+    - Robust: Huber regression, RANSAC, Theil-Sen
+    - Quantile regression (for non-mean prediction)
+    - Bayesian: BayesianRidge, ARD regression
+10. **Classification models**:
+    - Logistic regression (binary, multinomial, ordinal)
+    - Probit regression
+    - Regularized logistic: L1, L2, Elastic Net penalties
+    - Discriminant analysis: LDA, QDA
+11. **Time series models**:
+    - ARIMA / SARIMA (seasonal)
+    - Exponential smoothing (Holt-Winters: additive, multiplicative)
+    - VAR / VECM (multivariate)
+    - GARCH / EGARCH (volatility modeling)
+    - State space models (Kalman filter)
+    - Prophet (additive decomposition)
+    - Theta method
+12. **Survival models**:
+    - Cox proportional hazards
+    - Accelerated failure time (AFT)
+    - Parametric models: Weibull, log-normal, log-logistic
 
-#### C. Hyperparameter Tuning (try third)
+#### C. Model Specification & Tuning (try third)
 
-12. **Tree-based models**: n_estimators, max_depth, min_samples_leaf, learning_rate, subsample, colsample_bytree, reg_alpha, reg_lambda
-13. **Linear models**: C/alpha (regularization strength), solver, penalty type
-14. **SVM**: C, gamma, kernel
-15. **General**: Try halving the default, then doubling — bracket the optimum, then narrow
+13. **Regularization strength**: alpha for ridge/lasso (try log-spaced grid: 0.001, 0.01, 0.1, 1, 10, 100)
+14. **L1/L2 ratio**: Elastic Net l1_ratio (0.1 through 0.9)
+15. **ARIMA orders**: (p,d,q) and seasonal (P,D,Q,s) — use ACF/PACF plots or auto_arima
+16. **GLM link functions**: log, logit, inverse, identity — match to problem structure
+17. **Variance structure**: heteroscedasticity corrections, robust standard errors
+18. **Splines and basis functions**: natural splines, B-splines for non-linear relationships within linear models
 
-#### D. Ensemble & Stacking (try last)
+#### D. Diagnostics & Refinement (try throughout)
 
-16. **Voting ensemble**: Combine top 2-3 models with soft voting
-17. **Stacking**: Use top models as base, simple model (logistic/ridge) as meta
-18. **Blending**: Weighted average of predictions — optimize weights
+19. **Residual analysis**: Check for patterns, non-normality, heteroscedasticity
+20. **Influence diagnostics**: Cook's distance, DFBETAS, leverage — remove or downweight outliers
+21. **Multicollinearity**: VIF > 10 suggests problems — drop or combine features
+22. **Model comparison**: Likelihood ratio tests, AIC/BIC comparison, nested F-tests
+23. **Cross-validation**: k-fold CV for prediction accuracy, leave-one-out for small datasets
+24. **Assumption checks**: Normality (Q-Q plots), homoscedasticity (Breusch-Pagan), independence (Durbin-Watson)
 
 ### Step 2 — Modify
 
 Edit the target file. Follow these code patterns:
 
 ```python
-# Good: deterministic, reproducible
-from sklearn.model_selection import StratifiedKFold
-cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+# Good: statsmodels OLS with formula interface
+import statsmodels.formula.api as smf
+model = smf.ols('y ~ x1 + x2 + np.log(x3)', data=df).fit()
+print(f"r_squared: {model.rsquared:.6f}")
+print(f"aic: {model.aic:.2f}")
 
-# Good: pipeline prevents data leakage
+# Good: sklearn Ridge with pipeline
 from sklearn.pipeline import Pipeline
+from sklearn.linear_model import Ridge
 pipe = Pipeline([
     ('scaler', StandardScaler()),
-    ('model', LogisticRegression())
+    ('model', Ridge(alpha=1.0))
 ])
 
-# Bad: fitting scaler on full data before split (leakage!)
-scaler.fit(X)  # DON'T DO THIS
-X_scaled = scaler.transform(X)
-```
+# Good: ARIMA with statsmodels
+from statsmodels.tsa.arima.model import ARIMA
+model = ARIMA(train, order=(1,1,1)).fit()
+forecast = model.forecast(steps=7)
 
-**Always use pipelines** to prevent preprocessing leakage.
+# Bad: using XGBoost or RandomForest — use /autoforge-ml for those
+```
 
 ### Step 3 — Commit
 ```bash
@@ -154,21 +184,22 @@ git commit -m "experiment: [description]"
 
 ### Step 4 — Run
 ```bash
-timeout 600 [eval_command] > run.log 2>&1
+timeout 300 [eval_command] > run.log 2>&1
 ```
-Default timeout: 10 minutes (stat models are usually faster than deep learning).
+Default timeout: 5 minutes (statistical models are typically fast).
 
 ### Step 5 — Measure
-Extract metric from log. Also extract CV standard deviation if available.
+Extract metric from log. Also extract AIC/BIC and CV standard deviation if available.
 
 ### Step 6 — Decide
 
 | Result | Action |
 |--------|--------|
-| Metric improved AND cv_std not dramatically worse | **KEEP** |
-| Metric improved BUT cv_std doubled+ | **SUSPICIOUS** — likely overfitting, discard |
+| Metric improved AND model diagnostics clean | **KEEP** |
+| Metric improved BUT assumptions violated | **SUSPICIOUS** — fix assumptions first |
 | Metric equal/worse | **DISCARD** |
-| Metric very close (<0.1% diff) but simpler code | **KEEP** (simplicity wins) |
+| Metric very close but simpler model (fewer params) | **KEEP** (parsimony wins) |
+| Lower AIC/BIC with similar predictive performance | **KEEP** |
 | Crashed | **CRASH** — revert |
 
 Append to `results.tsv` and keep or revert as appropriate.
@@ -184,74 +215,91 @@ Append to `results.tsv` and keep or revert as appropriate.
 
 ### NEVER STOP
 Run indefinitely until manually interrupted. If stuck:
-- Try a completely different model family
-- Try aggressive feature selection (fewer features)
-- Try the opposite of your last change
-- Try removing preprocessing steps
-- Re-read the data to find patterns you missed
+- Try a different model family (switch from ARIMA to exponential smoothing, or from OLS to GLM)
+- Try transforming the target variable (log, sqrt, Box-Cox)
+- Try removing features (parsimony often helps)
+- Check residual diagnostics for clues
+- Try robust alternatives to current model
+
+### Parsimony Principle
+Statistical models favor simplicity. All else equal:
+- Fewer parameters is better (lower AIC/BIC)
+- Interpretable coefficients matter
+- A model that satisfies assumptions beats one that doesn't, even with slightly worse prediction
+- Occam's razor: the simplest adequate model wins
 
 ### Prevent Overfitting
-- **Always monitor CV standard deviation** — if it's growing, you're overfitting
-- **Prefer models with fewer parameters** when metrics are close
-- **Watch for data leakage**: target encoding without CV, scaling before split, using future data
-- **Be suspicious of dramatic improvements** — probably a bug or leakage
+- **Monitor AIC/BIC** — if they're diverging from CV performance, you're overfitting
+- **Watch degrees of freedom** — don't add more features than your data can support (rule of thumb: 10-20 observations per parameter)
+- **Regularize** when in doubt — ridge/lasso prevent overfitting in high-dimensional settings
+- **Be suspicious of dramatic improvements** — probably a specification error
 
 ### Reproducibility
-- Set `random_state=42` everywhere (or whatever seed the user uses)
-- Pin all random seeds: numpy, sklearn, xgboost, etc.
+- Set `random_state=42` everywhere applicable
+- Pin all random seeds: numpy, statsmodels, sklearn
 - Results must be reproducible on re-run
 
 ### Statistical Rigor
-- Don't chase noise: if improvement is within 1 CV standard deviation, it's probably not real
-- For small datasets: use more CV folds (10) or repeated CV
-- For imbalanced classes: use stratified splits and appropriate metrics (AUC, F1, not accuracy)
+- Don't chase noise: if improvement is within 1 standard error, it's probably not real
+- Report confidence intervals, not just point estimates
+- For small datasets: use more CV folds or bootstrap
+- Check model assumptions before trusting results
 
 ### Output Format
 The training script should print results in a parseable format:
 ```
 metric_name:     0.8523
 cv_std:          0.0034
-train_time_s:    12.3
-peak_memory_mb:  256.0
+aic:             1234.56
+bic:             1256.78
+train_time_s:    2.3
 ```
 If the script doesn't print this, modify it to do so in the first iteration (as part of baseline setup).
 
 ## Domain-Specific Guidance
 
-### Classification
-- Start with: LightGBM or LogisticRegression (depending on data size)
-- Key metrics: AUC-ROC for ranking, F1 for imbalanced, accuracy for balanced
-- Watch for: class imbalance (use `class_weight='balanced'` or SMOTE)
-- Feature importance: use SHAP or permutation importance to guide feature engineering
+### Econometrics / Finance
+- Start with: OLS, then try WLS/GLS if heteroscedasticity present
+- Time series: ARIMA/GARCH for financial returns, VAR for macro variables
+- Key metrics: R-squared, adjusted R-squared, AIC/BIC, Sharpe ratio (if applicable)
+- Watch for: autocorrelation (Durbin-Watson), structural breaks, non-stationarity
+- Use Newey-West or HAC standard errors for time series regressions
 
-### Regression
-- Start with: Ridge or LightGBM
-- Key metrics: RMSE, MAE, R-squared, MAPE
-- Watch for: heteroscedasticity (try log-transforming target), outliers in target
-- Residual analysis: if residuals show patterns, you're missing features
+### Biostatistics / Clinical
+- Start with: Logistic regression (binary outcomes), Cox PH (survival)
+- Key metrics: AUC, concordance index, calibration curves
+- Watch for: rare events (Firth's penalized likelihood), competing risks, informative censoring
+- Use robust variance estimators; consider mixed-effects models for clustered data
 
-### Time Series
-- Start with: LightGBM with lag features, or statsmodels ARIMA
-- Key metrics: RMSE, MAPE, directional accuracy
-- Watch for: temporal leakage (never use future data), seasonality, trend
-- Feature ideas: lag features, rolling statistics, Fourier features for seasonality
+### Social Sciences
+- Start with: OLS or logistic regression with theory-driven features
+- Key metrics: R-squared, coefficient significance, effect sizes
+- Watch for: endogeneity (use IV/2SLS), selection bias, omitted variable bias
+- Prefer interpretable models over pure prediction accuracy
 
-### Survival Analysis
-- Start with: Cox proportional hazards, Random Survival Forest
-- Key metrics: concordance index (C-index), Brier score
-- Watch for: censoring patterns, time-varying covariates
+### Time Series Forecasting
+- Start with: ARIMA (use auto_arima for order selection), then Holt-Winters
+- Key metrics: RMSE, MAPE, directional accuracy, forecast intervals
+- Watch for: seasonal patterns, trend changes, structural breaks
+- Try: seasonal decomposition (STL), Fourier terms for multiple seasonalities
+- Always validate with temporal train/test split (no shuffling!)
+
+### Insurance / Actuarial
+- Start with: GLMs (Poisson for frequency, Gamma for severity, Tweedie for pure premium)
+- Key metrics: deviance, AIC, Gini coefficient, lift curves
+- Watch for: zero-inflation, overdispersion, exposure offsets
+- Use log link for multiplicative tariff structures
 
 ## Example Results Log
 
 ```
-commit	metric_value	cv_std	memory_mb	train_time_s	status	description
-a1b2c3d	0.8234	0.0045	128.0	5.2	keep	baseline: logistic regression
-b2c3d4e	0.8312	0.0041	256.0	8.1	keep	switch to LightGBM default params
-c3d4e5f	0.8298	0.0052	256.0	7.8	discard	add polynomial features degree 2
-d4e5f6g	0.8356	0.0039	260.0	9.3	keep	target encode top-3 categorical features
-e5f6g7h	0.8351	0.0105	512.0	45.2	discard	add all pairwise interactions (overfit, slow)
-f6g7h8i	0.8389	0.0038	264.0	10.1	keep	tune n_estimators=500, learning_rate=0.05
-g7h8i9j	0.8392	0.0037	268.0	11.4	keep	add log-transform to skewed numeric features
-h8i9j0k	0.8388	0.0042	270.0	15.3	discard	switch to CatBoost (marginal, slower)
-i9j0k1l	0.8401	0.0036	520.0	22.1	keep	stack LightGBM + Ridge as meta-learner
+commit	metric_value	cv_std	aic	bic	train_time_s	status	description
+a1b2c3d	0.7234	0.0045	1456.2	1478.9	1.2	keep	baseline: OLS with all features
+b2c3d4e	0.7312	0.0041	1423.1	1445.8	1.3	keep	remove multicollinear features (VIF>10)
+c3d4e5f	0.7456	0.0038	1398.7	1421.4	1.5	keep	log-transform skewed features
+d4e5f6g	0.7489	0.0042	1392.3	1420.1	1.8	keep	switch to Ridge (alpha=1.0)
+e5f6g7h	0.7501	0.0039	0	0	2.1	keep	tune Ridge alpha=0.5 via CV
+f6g7h8i	0.7498	0.0044	0	0	2.0	discard	Elastic Net l1_ratio=0.5 (marginal)
+g7h8i9j	0.7523	0.0037	0	0	1.9	keep	add interaction: x1*x2
+h8i9j0k	0.7510	0.0055	0	0	2.2	discard	add polynomial degree 3 (overfit, cv_std up)
 ```

@@ -1,6 +1,6 @@
 """
 S&P 500 7-Day Forecast — Training Script
-This is the file the autoforge-stats agent modifies to improve predictions.
+This is the file the autoforge-ml agent modifies to improve predictions.
 
 Predicts for each of the next 7 days:
   - Direction (up/down from previous day)

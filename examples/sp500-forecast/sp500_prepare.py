@@ -2,7 +2,7 @@
 S&P 500 7-Day Forecast — Data Preparation & Evaluation
 Fetches free data sources, builds features, and provides evaluation utilities.
 
-DO NOT MODIFY this file. The autoforge-stats agent only modifies sp500_train.py.
+DO NOT MODIFY this file. The autoforge-ml agent only modifies sp500_train.py.
 
 Usage: uv run sp500_prepare.py
 """
