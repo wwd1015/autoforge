@@ -22,12 +22,23 @@ if [ "$INSTALL_DIR" != "$AUTOFORGE_HOME" ]; then
   echo "  Linked $AUTOFORGE_HOME -> $INSTALL_DIR"
 fi
 
+# Remove old autoforge skill symlinks (handles renames/removals cleanly)
+for existing in "$SKILLS_DIR"/autoforge*; do
+  [ -L "$existing" ] || continue
+  target=$(readlink "$existing")
+  # Only remove if it points into this repo (don't touch other tools' symlinks)
+  case "$target" in
+    "$INSTALL_DIR"*) rm -f "$existing"; echo "  Removed stale /$( basename "$existing")" ;;
+  esac
+done
+
 # Symlink each skill folder into ~/.claude/skills/
 for skill_dir in "$INSTALL_DIR"/*/; do
   [ -f "$skill_dir/SKILL.md" ] || continue
   skill_name=$(basename "$skill_dir")
-  # Skip bin directory
+  # Skip bin and examples directories
   [ "$skill_name" = "bin" ] && continue
+  [ "$skill_name" = "examples" ] && continue
   ln -sfn "$skill_dir" "$SKILLS_DIR/$skill_name"
   echo "  Installed /$skill_name"
 done
